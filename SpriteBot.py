@@ -1517,6 +1517,17 @@ class SpriteBot:
 
 
     async def sendInfoPosts(self, channel, posts: List[str], msg_ids, msg_idx):
+        # split up post that are too long to fit in a single message
+        new_post_list = []
+        for post in posts:
+            if len(post) >= 1950:
+                for line in post.split("\n"):
+                    print(len(line))
+                    new_post_list.append(line)
+            else:
+                new_post_list.append(post)
+        posts = new_post_list
+        
         changed = False
         line_idx = 0
         while line_idx < len(posts):
