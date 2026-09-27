@@ -19,12 +19,20 @@ class CreditEvent:
     """
     A class for handling credit in credit history
     """
-    def __init__(self, datetime, name, old, license, changed):
+    def __init__(self, datetime: str, name: str, old: str, license: str, changed: str):
+        assert("\t" not in datetime)
+        assert("\t" not in name)
+        assert("\t" not in old)
+        assert("\t" not in license)
+        assert("\t" not in changed)
         self.datetime = datetime
         self.name = name
-        self.old = old
+        self.status = old
         self.license = license
         self.changed = changed
+
+    def format_for_credits_txt(self) -> str:
+        return f"{self.datetime}\t{self.name}\t{self.status}\t{self.license}\t{self.changed}\n"
 
 def getStatusEmoji(chosen_node, asset_type):
     pending = chosen_node.__dict__[asset_type+"_pending"]
@@ -59,7 +67,7 @@ def getCreditEntries(path):
     credit_strings = []
     for credit in credits:
         credit_id = credit.name
-        if credit.old == "OLD":
+        if credit.status == "OLD":
             continue
         if credit_id not in found_names:
             credit_strings.append(credit_id)
@@ -74,7 +82,7 @@ def hasExistingCredits(cur_credits, orig_author, diff):
                 return True
     return False
 
-def getFileCredits(path):
+def getFileCredits(path: str) -> List[CreditEvent]:
     id_list = []
     credit_path = os.path.join(path, Constants.CREDIT_TXT)
     if os.path.exists(credit_path):
@@ -93,51 +101,30 @@ def appendCredits(path, id, diff, is_old):
     status = "CUR"
     if is_old:
         status = "OLD"
+    credit = CreditEvent(str(datetime.datetime.utcnow()), id, status, CURRENT_LICENSE, diff)
     with open(os.path.join(path, Constants.CREDIT_TXT), 'a+', encoding='utf-8') as txt:
-        txt.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(str(datetime.datetime.utcnow()), id, status, CURRENT_LICENSE, diff))
+        txt.write(credit.format_for_credits_txt())
 
 def mergeCredits(path_from, path_to):
-    id_list = []
-    with open(path_to, 'r', encoding='utf-8') as txt:
-        for line in txt:
-            credit = line.strip().split('\t')
-            id_list.append(CreditEvent(credit[0], credit[1], credit[2], credit[3], credit[4]))
+    credits_from = getFileCredits(path_from)
+    credits_to = getFileCredits(path_to)
 
-    with open(path_from, 'r', encoding='utf-8') as txt:
-        for line in txt:
-            credit = line.strip().split('\t')
-            id_list.append(CreditEvent(credit[0], credit[1], credit[2], credit[3], credit[4]))
-
-    id_list = sorted(id_list, key=lambda x: x.datetime)
+    credits_merged = credits_from + credits_to
+    new_credits = sorted(credits_merged, key=lambda x: x.datetime)
 
     with open(path_to, 'w', encoding='utf-8') as txt:
-        for credit in id_list:
-            txt.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(credit.datetime, credit.name, credit.old, credit.license, credit.changed))
+        for credit in new_credits:
+            txt.write(credit.format_for_credits_txt())
 
-def shiftCredits(fullPath):
-    id_list = []
-    with open(fullPath, 'r', encoding='utf-8') as txt:
-        for line in txt:
-            id_list.append(line.strip().split('\t'))
-    for idx in range(len(id_list)):
-        if id_list[idx][1] == "CHUNSOFT":
-            id_list[idx][3] = "Unspecified"
-    with open(fullPath, 'w', encoding='utf-8') as txt:
-        for entry in id_list:
-            txt.write(entry[0] + "\t" + entry[1] + "\t" + entry[2] + "\t" + entry[3] + "\t" + entry[4] + "\n")
-
-def deleteCredits(path, id):
-    id_list = []
+def deleteCredits(path, name: str):
     fullPath = os.path.join(path, Constants.CREDIT_TXT)
-    with open(fullPath, 'r', encoding='utf-8') as txt:
-        for line in txt:
-            id_list.append(line.strip().split('\t'))
-    for entry in id_list:
-        if entry[1] == id:
-            entry[2] = "OLD"
+    credits = getFileCredits(fullPath)
+    for entry in credits:
+        if entry.name == name:
+            entry.status = "OLD"
     with open(fullPath, 'w', encoding='utf-8') as txt:
-        for entry in id_list:
-            txt.write(entry[0] + "\t" + entry[1] + "\t" + entry[2] + "\t" + entry[3] + "\t" + entry[4] + "\n")
+        for entry in credits:
+            txt.write(entry.format_for_credits_txt())
 
 class CreditEntry:
     """
@@ -380,7 +367,6 @@ def fileSystemToJson(dict, species_path, prefix, tier):
 
             fileSystemToJson(dict.subgroups[inFile], fullPath, prefix, tier + 1)
         elif inFile == Constants.CREDIT_TXT:
-            #shiftCredits(fullPath)
             credit_entries = getCreditEntries(species_path)
             credit_data = dict.__dict__[prefix + "_credit"]
             updateCreditFromEntries(credit_data, credit_entries)
@@ -717,7 +703,7 @@ def updateCompilationStats(name_dict, dict, species_path, prefix, form_name_list
     credits = getFileCredits(species_path)
     # for each entry, update the credit dict
     for credit in credits:
-        if credit.old == "CUR":
+        if credit.status == "CUR":
             # add entry if not existing
             if credit.name not in credit_dict:
                 if credit.name in name_dict:
@@ -789,16 +775,13 @@ def renameFileCredits(species_path, old_name, new_name):
         if os.path.isdir(fullPath):
             renameFileCredits(fullPath, old_name, new_name)
         elif inFile == Constants.CREDIT_TXT:
-            id_list = []
-            with open(fullPath, 'r', encoding='utf-8') as txt:
-                for line in txt:
-                    id_list.append(line.strip().split('\t'))
-            for entry in id_list:
-                if entry[1] == old_name:
-                    entry[1] = new_name
+            credits = getFileCredits(fullPath)
+            for entry in credits:
+                if entry.name == old_name:
+                    entry.name = new_name
             with open(fullPath, 'w', encoding='utf-8') as txt:
-                for entry in id_list:
-                    txt.write(entry[0] + "\t" + entry[1] + "\t" + entry[2] + "\t" + entry[3] + "\t" + entry[4] + "\n")
+                for entry in credits:
+                    txt.write(entry.format_for_credits_txt())
 
 def getDirFromIdx(base_path, asset_type, full_idx):
     full_arr = [base_path, asset_type] + full_idx

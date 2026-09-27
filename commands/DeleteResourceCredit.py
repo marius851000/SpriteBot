@@ -90,7 +90,7 @@ class DeleteResourceCredit(BaseCommand):
         latest_credit = False
         for credit_entry in credit_entries:
             credit_id = credit_entry.name
-            if credit_entry.old == "OLD":
+            if credit_entry.status == "OLD":
                 continue
             if credit_id == wanted_author:
                 has_credit = True
