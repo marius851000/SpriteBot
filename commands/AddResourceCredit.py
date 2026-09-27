@@ -35,7 +35,7 @@ class AddResourceCredit(BaseCommand):
                + self.generateMultiLineExample(server_config.prefix, [
                 "@Audino Unown Shiny \"",
                 "<@!117780585635643396> Unown Shiny \"",
-                "`{prefix}addspritecredit @Audino Unown Shiny Idle,Rotate,Sleep`",
+                "@Audino Unown Shiny Idle,Rotate,Sleep",
                 "POWERCRISTAL Calyrex \"",
                 "POWERCRISTAL Calyrex Shiny \"",
                 "POWERCRISTAL Jellicent Shiny Female \""
