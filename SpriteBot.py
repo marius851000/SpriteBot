@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Set
 
 
 import os
@@ -133,6 +133,7 @@ class BotConfig:
         self.update_ch = 0
         self.update_msg = 0
         self.use_bounties = False
+        self.selectable_license = False
         self.servers: Dict[str, BotServer] = {}
 
         if main_dict is None:
@@ -1567,6 +1568,9 @@ class SpriteBot:
 
         return msg_idx, changed
 
+    def listLicenses(self) -> Set[str]:
+        return TrackerUtils.listLicenses(os.path.join(self.config.path, "license_history"))
+    
     async def updatePost(self, server):
         # update status in #info
         msg_ids = server.info_posts
@@ -1582,7 +1586,14 @@ class SpriteBot:
         msgs_used = 0
         msgs_used, changed = await self.sendInfoPosts(channel, posts, msg_ids, msgs_used)
         changed_list |= changed
-        msgs_used, changed = await self.sendInfoPosts(channel, self.info_post, msg_ids, msgs_used)
+
+        info_posts = []
+        for message in self.info_post:
+            if "{{licenses}}" in message:
+                message = message.replace("{{licenses}}", TrackerUtils.makeLicenseListMessage(self.listLicenses()))
+            info_posts.append(message)    
+                
+        msgs_used, changed = await self.sendInfoPosts(channel, info_posts, msg_ids, msgs_used)
         changed_list |= changed
 
         # remove unneeded posts from the list

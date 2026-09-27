@@ -1,4 +1,5 @@
-from typing import Dict, List, Any, Optional, Tuple
+import logging
+from typing import Dict, List, Any, Optional, Tuple, Set
 
 import sys
 import os
@@ -203,6 +204,26 @@ class CreditNode:
             node_dict[k] = self.__dict__[k]
         return node_dict
 
+def listLicenses(license_folder: str) -> Set[str]:
+    licenses = set()
+    if os.path.isdir(license_folder):
+        for license_file_name in os.listdir(license_folder):
+            license_id = re.fullmatch(r"LICENSE\.(.*)\.md", license_file_name)
+            if license_id is None:
+                logging.warning(f"License file {license_file_name} does not follow the expected format LICENSE.*.md. Ignoring.")
+                continue
+            licenses.add(license_id.group(1))
+    else:
+        logging.warning(f"License folder path is not a folder: {license_folder}")
+    licenses.add("Unspecified")
+    return licenses
+
+def makeLicenseListMessage(license_list: Set[str]) -> str:
+    result = ""
+    for license_id in sorted(license_list):
+        result += f"* {license_id}\n"
+    return result
+    
 def loadNameFile(name_path):
     name_dict = { }
     first = True
