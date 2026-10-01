@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 import Constants
 
 CURRENT_LICENSE = "CC_BY-NC_4"
+UNSPECIFIED_LICENSE = "Unspecified"
 
 MAX_SECONDARY_CREDIT = 2
 PHASE_INCOMPLETE = 0
@@ -98,6 +99,11 @@ def getFileCredits(path: str) -> List[CreditEvent]:
         logging.warning(f"getFileCredits has been called on a file. It should have been passed the path to the folder containing the file. Argument: {path}")
     return id_list
 
+def writeCredits(folder_path: str, entries: List[CreditEvent]):
+    with open(os.path.join(folder_path, Constants.CREDIT_TXT), 'w', encoding='utf-8') as txt:
+        for entry in entries:
+            txt.write(entry.format_for_credits_txt())
+    
 def appendCredits(path, id, diff, is_old):
     if diff == '':
         diff = '"'
@@ -148,6 +154,17 @@ class CreditCompileEntry:
         self.sprite = {}
         self.portrait = {}
         self.contact = contact
+
+def are_credit_name_identical(name1: str, name2: str) -> bool:
+    """Compare 2 name (either a discord mention or absentee profile), return true if they refere to the same person"""
+    def normalize_credit_name(name: str) -> str:
+        if name.startswith("<") and name.endswith(">"):
+            # discord mentions may be in the form <@ID> or <@!ID>
+            return name.split(">")[0].split("<@!")[-1].split("<@")[-1]
+        else:
+            return name
+
+    return normalize_credit_name(name1) == normalize_credit_name(name2)
 
 class TrackerNode:
     name: str

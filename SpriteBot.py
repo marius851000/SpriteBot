@@ -55,6 +55,7 @@ from commands.Rescan import Rescan
 from commands.PastWork import PastWork
 from commands.Update import Update
 from commands.Shutdown import Shutdown
+from commands.ChangeRessourceLicense import ChangeRessourceLicense
 
 from Constants import PHASES, PermissionLevel
 from utils import unpack_optional
@@ -310,6 +311,9 @@ class SpriteBot:
             self.addCommand(AddResourceBounty(self, "portrait"))
             self.addCommand(AddResourceBounty(self, "sprite"))
 
+        if self.config.selectable_license:
+            self.addCommand(ChangeRessourceLicense(self, "portrait"))
+            self.addCommand(ChangeRessourceLicense(self, "sprite"))
 
         self.writeLog("Startup Memory: {0}".format(psutil.Process().memory_info().rss))
         print("Info Initiated")
