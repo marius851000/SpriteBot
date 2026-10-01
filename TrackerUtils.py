@@ -86,7 +86,7 @@ def hasExistingCredits(cur_credits, orig_author, diff):
 def getFileCredits(path: str) -> List[CreditEvent]:
     id_list = []
     credit_path = os.path.join(path, Constants.CREDIT_TXT)
-    if os.path.exists(credit_path):
+    if os.path.isfile(credit_path):
         with open(credit_path, 'r', encoding='utf-8') as txt:
             for line in txt:
                 credit = line.strip().split('\t')
@@ -94,6 +94,8 @@ def getFileCredits(path: str) -> List[CreditEvent]:
                     id_list.append(CreditEvent(credit[0], credit[1], credit[2], credit[3], credit[4]))
                 else:
                     raise BaseException("Invalid credit line “{}” at {}".format(line, credit_path))
+    elif os.path.isfile(path):
+        logging.warning(f"getFileCredits has been called on a file. It should have been passed the path to the folder containing the file. Argument: {path}")
     return id_list
 
 def appendCredits(path, id, diff, is_old):
@@ -113,13 +115,13 @@ def mergeCredits(path_from, path_to):
     credits_merged = credits_from + credits_to
     new_credits = sorted(credits_merged, key=lambda x: x.datetime)
 
-    with open(path_to, 'w', encoding='utf-8') as txt:
+    with open(os.path.join(path_to, Constants.CREDIT_TXT), 'w', encoding='utf-8') as txt:
         for credit in new_credits:
             txt.write(credit.format_for_credits_txt())
 
 def deleteCredits(path, name: str):
     fullPath = os.path.join(path, Constants.CREDIT_TXT)
-    credits = getFileCredits(fullPath)
+    credits = getFileCredits(path)
     for entry in credits:
         if entry.name == name:
             entry.status = "OLD"
@@ -796,7 +798,7 @@ def renameFileCredits(species_path, old_name, new_name):
         if os.path.isdir(fullPath):
             renameFileCredits(fullPath, old_name, new_name)
         elif inFile == Constants.CREDIT_TXT:
-            credits = getFileCredits(fullPath)
+            credits = getFileCredits(species_path)
             for entry in credits:
                 if entry.name == old_name:
                     entry.name = new_name
