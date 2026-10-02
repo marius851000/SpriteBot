@@ -1572,7 +1572,7 @@ class SpriteBot:
 
         return msg_idx, changed
 
-    def listLicenses(self) -> Set[str]:
+    def listLicenses(self) -> Dict[str, TrackerUtils.License]:
         return TrackerUtils.listLicenses(os.path.join(self.config.path, "license_history"))
     
     async def updatePost(self, server):

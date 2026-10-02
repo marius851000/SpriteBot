@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, List, Any, Optional, Tuple, Set
 
-import sys
+import json
 import os
 import re
 import shutil
@@ -223,24 +223,65 @@ class CreditNode:
             node_dict[k] = self.__dict__[k]
         return node_dict
 
-def listLicenses(license_folder: str) -> Set[str]:
-    licenses = set()
-    if os.path.isdir(license_folder):
-        for license_file_name in os.listdir(license_folder):
-            license_id = re.fullmatch(r"LICENSE\.(.*)\.md", license_file_name)
-            if license_id is None:
-                logging.warning(f"License file {license_file_name} does not follow the expected format LICENSE.*.md. Ignoring.")
-                continue
-            licenses.add(license_id.group(1))
-    else:
+class License:
+    def __init__(self, id: str, name: str, display: bool):
+        self.id = id
+        self.name = name
+        self.display = display # control whether it is listed in the general list of license
+    
+def listLicenses(license_folder: str) -> Dict[str, License]:
+    licenses = {}
+    print("list license")
+    if not os.path.isdir(license_folder):
         logging.warning(f"License folder path is not a folder: {license_folder}")
-    licenses.add("Unspecified")
+    else:
+        for license_file_name in os.listdir(license_folder):
+            if license_file_name.endswith(".json"):
+                pass
+            elif license_file_name.endswith(".md"):
+                license_id_parsed = re.fullmatch(r"LICENSE\.(.*)\.md", license_file_name)
+                if license_id_parsed is None:
+                    logging.warning(f"License file {license_file_name} does not follow the expected format LICENSE.*.md. Ignoring.")
+                    continue
+                    
+                license_id = license_id_parsed.group(1)
+                assert(isinstance(license_id, str))
+                json_meta_file_name = f"LICENSE.{license_id}.json"
+                name = license_id
+                display = True
+                meta_dict = {}
+                
+                try:
+                    with open(os.path.join(license_folder, json_meta_file_name)) as f:
+                        meta_dict = json.load(f)
+                except Exception:
+                    logging.exception(f"Error trying to read the file in the license folder {json_meta_file_name}")
+    
+                if "name" in meta_dict:
+                    assert(isinstance(meta_dict["name"], str))
+                    name = meta_dict["name"]
+                if "display" in meta_dict:
+                    assert(isinstance(meta_dict["display"], bool))
+                    display = meta_dict["display"]
+                    
+                licenses[license_id] = License(license_id, name, display)
+            else:
+                logging.warning(f"Unexpected file {license_file_name} in the license folder")
+
+    if UNSPECIFIED_LICENSE not in licenses:
+        licenses[UNSPECIFIED_LICENSE] = License(UNSPECIFIED_LICENSE, "No license documented", False)
+    
     return licenses
 
-def makeLicenseListMessage(license_list: Set[str]) -> str:
+def makeLicenseListMessage(license_list: Dict[str, License]) -> str:
     result = ""
-    for license_id in sorted(license_list):
-        result += f"* {license_id}\n"
+    nb_license = 0
+    for license in sorted(license_list.values(), key = lambda license: license.id):
+        if license.display:
+            result += f"* {license.id}: {license.name}\n"
+            nb_license += 1
+    if nb_license == 0:
+        result += "* No license to display"
     return result
     
 def loadNameFile(name_path):
