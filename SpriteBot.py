@@ -236,6 +236,8 @@ class SpriteBot:
         self.saveTracker()
         # save updated credits
         self.saveNames()
+        # cache licenses info
+        self.licenses = TrackerUtils.listLicenses(os.path.join(self.config.path, "license_history"))
 
         # register commands
         self.commands = []
@@ -1571,9 +1573,6 @@ class SpriteBot:
             msg_idx += 1
 
         return msg_idx, changed
-
-    def listLicenses(self) -> Dict[str, TrackerUtils.License]:
-        return TrackerUtils.listLicenses(os.path.join(self.config.path, "license_history"))
     
     async def updatePost(self, server):
         # update status in #info
@@ -1594,7 +1593,7 @@ class SpriteBot:
         info_posts = []
         for message in self.info_post:
             if "{{licenses}}" in message:
-                message = message.replace("{{licenses}}", TrackerUtils.makeLicenseListMessage(self.listLicenses()))
+                message = message.replace("{{licenses}}", TrackerUtils.makeLicenseListMessage(self.licenses))
             info_posts.append(message)    
                 
         msgs_used, changed = await self.sendInfoPosts(channel, info_posts, msg_ids, msgs_used)

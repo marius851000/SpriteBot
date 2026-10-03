@@ -231,7 +231,6 @@ class License:
     
 def listLicenses(license_folder: str) -> Dict[str, License]:
     licenses = {}
-    print("list license")
     if not os.path.isdir(license_folder):
         logging.warning(f"License folder path is not a folder: {license_folder}")
     else:
@@ -278,7 +277,7 @@ def makeLicenseListMessage(license_list: Dict[str, License]) -> str:
     nb_license = 0
     for license in sorted(license_list.values(), key = lambda license: license.id):
         if license.display:
-            result += f"* {license.id}: {license.name}\n"
+            result += f"* ``{license.id}``: {license.name}\n"
             nb_license += 1
     if nb_license == 0:
         result += "* No license to display"

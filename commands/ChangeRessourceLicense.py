@@ -77,15 +77,20 @@ class ChangeRessourceLicense(BaseCommand):
 
         # permission granted
 
+        license_info = self.sprite_bot.licenses.get(new_license_id)
+        if license_info == None:
+            await msg.reply(f"License ``{new_license_id}`` does not match any known license. No change were made.")
+            return
+
         nb_license_replaced = 0
         for entry in credits:
             if TrackerUtils.are_credit_name_identical(entry.name, contributor_mention):
                 nb_license_replaced += 1
-                entry.license = new_license_id
+                entry.license = license_info.id
 
         if nb_license_replaced == 0:
             await msg.reply(f"No contribution from {contributor_mention} present on this {self.resource_type}.")
             return
 
         TrackerUtils.writeCredits(mon_path, credits)
-        await msg.reply(f"The {self.resource_type} license of {contributor_mention} contributions has been set to {new_license_id}.")
+        await msg.reply(f"The {self.resource_type} license of {contributor_mention} contributions has been set to {license_info.name} (``{license_info.id}``).")
