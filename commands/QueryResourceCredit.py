@@ -92,6 +92,14 @@ class QueryResourceCredit(BaseCommand):
 
         credit_str = ""
         too_long = False
+        
+        def _get_license_name_or_default(license_id: str) -> str:
+            license = self.spritebot.licenses.get(license_id)
+            if license == None:
+                return license_id
+            else:
+                return license.name
+                        
         if self.display_history:
             credit_entries = TrackerUtils.getCredits(gen_path)
             for credit_entry in credit_entries:
@@ -99,17 +107,26 @@ class QueryResourceCredit(BaseCommand):
                 entry = self.spritebot.names[credit_entry.name]
                 if entry.name != '':
                     credit_id = entry.name
-                credit_line = "{0}\t{1}\t{2}".format(credit_entry.datetime, credit_id, credit_entry.changed)
+                credit_line = "{0}\t{1}\t{2}\t{3}".format(credit_entry.datetime, credit_id, credit_entry.changed, _get_license_name_or_default(credit_entry.license).replace("\t", " " * 4))
                 credit_str += '\n' + credit_line
                 if len(credit_str) >= 1900:
                     too_long = True
         else:
-            credit_entries = TrackerUtils.getCreditEntries(gen_path)
+            credit_entries = TrackerUtils.getCurrentCreditsPerAuthor(gen_path)
             for credit_id in credit_entries:
+                author_credits = credit_entries[credit_id]
+                
+                licenses_used: List[str] = []
+                for credit in author_credits:
+                    if credit.license not in licenses_used:
+                        licenses_used.append(credit.license)
+                
+                license_string = ", ".join([_get_license_name_or_default(x) for x in licenses_used])
+                    
                 entry = self.spritebot.names[credit_id]
                 if entry.name != '':
                     credit_id = entry.name
-                credit_line = "{0}\t{1}".format(credit_id, entry.contact)
+                credit_line = "{0}\t{1}\t{2}".format(credit_id, entry.contact, license_string.replace("\t", " " * 2))
                 credit_str += '\n' + credit_line
                 if len(credit_str) >= 1900:
                     too_long = True

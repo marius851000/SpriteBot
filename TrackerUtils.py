@@ -62,7 +62,7 @@ def getStatusEmoji(chosen_node, asset_type):
         else:  # black circle
             return "\u26AB"
 
-def getCreditEntries(path):
+def getCreditEntries(path) -> List[str]:
     credits = getCredits(path)
 
     found_names = {}
@@ -75,6 +75,20 @@ def getCreditEntries(path):
             credit_strings.append(credit_id)
             found_names[credit_id] = True
     return credit_strings
+
+def getCurrentCreditsPerAuthor(path) -> Dict[str, List[CreditEvent]]:
+    credits = getCredits(path)
+
+    result = {}
+    for credit in credits:
+        credit_id = credit.name
+        if credit.status == "OLD":
+            continue
+        if credit_id not in result:
+            result[credit_id] = []
+        result[credit_id].append(credit)
+
+    return result
 
 def hasExistingCredits(cur_credits, orig_author, diff):
     for credit in cur_credits:
