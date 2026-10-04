@@ -85,7 +85,7 @@ class DeleteResourceCredit(BaseCommand):
             return
 
         gen_path = TrackerUtils.getDirFromIdx(self.spritebot.config.path, self.resource_type, full_idx)
-        credit_entries = TrackerUtils.getFileCredits(gen_path)
+        credit_entries = TrackerUtils.getCredits(gen_path)
         has_credit = False
         latest_credit = False
         for credit_entry in credit_entries:

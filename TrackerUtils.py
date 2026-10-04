@@ -63,7 +63,7 @@ def getStatusEmoji(chosen_node, asset_type):
             return "\u26AB"
 
 def getCreditEntries(path):
-    credits = getFileCredits(path)
+    credits = getCredits(path)
 
     found_names = {}
     credit_strings = []
@@ -84,7 +84,7 @@ def hasExistingCredits(cur_credits, orig_author, diff):
                 return True
     return False
 
-def getFileCredits(path: str) -> List[CreditEvent]:
+def getCredits(path: str) -> List[CreditEvent]:
     id_list = []
     credit_path = os.path.join(path, Constants.CREDIT_TXT)
     if os.path.isfile(credit_path):
@@ -96,7 +96,7 @@ def getFileCredits(path: str) -> List[CreditEvent]:
                 else:
                     raise BaseException("Invalid credit line “{}” at {}".format(line, credit_path))
     elif os.path.isfile(path):
-        logging.warning(f"getFileCredits has been called on a file. It should have been passed the path to the folder containing the file. Argument: {path}")
+        logging.warning(f"getCredits has been called on a file. It should have been passed the path to the folder containing the file. Argument: {path}")
     return id_list
 
 def writeCredits(folder_path: str, entries: List[CreditEvent]):
@@ -104,19 +104,19 @@ def writeCredits(folder_path: str, entries: List[CreditEvent]):
         for entry in entries:
             txt.write(entry.format_for_credits_txt())
     
-def appendCredits(path, id, diff, is_old):
+def appendCredits(path, id, diff, is_old, license_id):
     if diff == '':
         diff = '"'
     status = "CUR"
     if is_old:
         status = "OLD"
-    credit = CreditEvent(str(datetime.datetime.utcnow()), id, status, CURRENT_LICENSE, diff)
+    credit = CreditEvent(str(datetime.datetime.utcnow()), id, status, license_id, diff)
     with open(os.path.join(path, Constants.CREDIT_TXT), 'a+', encoding='utf-8') as txt:
         txt.write(credit.format_for_credits_txt())
 
 def mergeCredits(path_from, path_to):
-    credits_from = getFileCredits(path_from)
-    credits_to = getFileCredits(path_to)
+    credits_from = getCredits(path_from)
+    credits_to = getCredits(path_to)
 
     credits_merged = credits_from + credits_to
     new_credits = sorted(credits_merged, key=lambda x: x.datetime)
@@ -127,7 +127,7 @@ def mergeCredits(path_from, path_to):
 
 def deleteCredits(path, name: str):
     fullPath = os.path.join(path, Constants.CREDIT_TXT)
-    credits = getFileCredits(path)
+    credits = getCredits(path)
     for entry in credits:
         if entry.name == name:
             entry.status = "OLD"
@@ -780,7 +780,7 @@ def updateCompilationStats(name_dict, dict, species_path, prefix, form_name_list
     # generate the form name
     form_name = " ".join([i for i in form_name_list if i != ""])
     # is there a credits txt?  read it
-    credits = getFileCredits(species_path)
+    credits = getCredits(species_path)
     # for each entry, update the credit dict
     for credit in credits:
         if credit.status == "CUR":
@@ -855,7 +855,7 @@ def renameFileCredits(species_path, old_name, new_name):
         if os.path.isdir(fullPath):
             renameFileCredits(fullPath, old_name, new_name)
         elif inFile == Constants.CREDIT_TXT:
-            credits = getFileCredits(species_path)
+            credits = getCredits(species_path)
             for entry in credits:
                 if entry.name == old_name:
                     entry.name = new_name

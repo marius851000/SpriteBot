@@ -57,7 +57,7 @@ class ChangeRessourceLicense(BaseCommand):
             return
         
         mon_path = TrackerUtils.getDirFromIdx(self.sprite_bot.config.path, self.resource_type, full_idx)
-        credits = TrackerUtils.getFileCredits(mon_path)
+        credits = TrackerUtils.getCredits(mon_path)
 
         if not user_permission.canPerformAction(PermissionLevel.STAFF):
             if not TrackerUtils.are_credit_name_identical(contributor_mention, msg.author.mention):

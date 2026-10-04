@@ -87,6 +87,7 @@ parser.add_argument('--nocredit', nargs='?', const=True, default=False)
 parser.add_argument('--addauthor', nargs='?', const=True, default=False)
 parser.add_argument('--deleteauthor', nargs='?', const=True, default=False)
 parser.add_argument('--files')
+parser.add_argument('--license')
 
 class MyClient(discord.Client):
     async def setup_hook(self):
@@ -247,8 +248,10 @@ class SpriteBot:
         self.addCommand(QueryResourceStatus(self, "portrait", True))
         self.addCommand(QueryResourceStatus(self, "sprite", False))
         self.addCommand(QueryResourceStatus(self, "sprite", True))
-        self.addCommand(AutoRecolorResource(self, "portrait"))
-        self.addCommand(AutoRecolorResource(self, "sprite"))
+        if not self.config.selectable_license:
+            # these cause some issue with tracking edit and licenses, may need more work (unlike auto recolor on submission accepted)
+            self.addCommand(AutoRecolorResource(self, "portrait"))
+            self.addCommand(AutoRecolorResource(self, "sprite"))
         self.addCommand(ListResource(self, "portrait"))
         self.addCommand(ListResource(self, "sprite"))
         self.addCommand(QueryResourceCredit(self, "portrait", False))
@@ -867,6 +870,8 @@ class SpriteBot:
         delete_author = False
         no_credit = False
         diffs = []
+        license_id: str | None = None
+        msg_args = None
         if len(msg_lines) > 1:
             try:
                 msg_args = parser.parse_args(msg_lines[1].split())
@@ -882,6 +887,16 @@ class SpriteBot:
                     diffs, failed_file_names = self.parseFileNames(chosen_node, asset_type, msg_args.files)
             if msg_args.deleteauthor:
                 delete_author = True
+            if msg_args.license is not None:
+                if not self.config.selectable_license:
+                    await self.getChatChannel(msg.guild.id).send(f"{msg.author.mention} A license has been specified, which is not allowed (this is a SpriteBot bug, it should have rejected the submission outright). msg_args is: {str(msg_args)}")
+                    await msg.delete()
+                    return
+                if msg_args.license not in self.licenses:
+                    await self.getChatChannel(msg.guild.id).send(f"{msg.author.mention} Unknown license specified (this is a SpriteBot bug, it should have rejected it earlier). msg_args is: {str(msg_args)}")
+                    await msg.delete()
+                    return
+                license_id = msg_args.license
             if msg_args.base:
                 name_seq = [TrackerUtils.sanitizeName(i) for i in msg_args.base]
                 base_idx = TrackerUtils.findFullTrackerIdx(self.tracker, name_seq, 0)
@@ -889,6 +904,14 @@ class SpriteBot:
                     await self.getChatChannel(msg.guild.id).send(msg.author.mention + " No such Pokemon to base this sprite off.")
                     await msg.delete()
                     return
+
+        if license_id is None and not self.config.selectable_license:
+            license_id = TrackerUtils.CURRENT_LICENSE
+
+        if license_id is None and not delete_author:
+            await self.getChatChannel(msg.guild.id).send(f"{msg.author.mention} No license specified (that is a bug in SpriteBot, it should have been checked earlier). msg_args is: {str(msg_args)}")
+            await msg.delete()
+            return
 
         if not add_author and not delete_author and len(msg_lines) > 2:
             changes_idx = 2
@@ -989,13 +1012,12 @@ class SpriteBot:
             # reload secondary credits and amount
             TrackerUtils.updateCreditFromEntries(credit_data, credit_entries)
         else:
-            cur_credits = TrackerUtils.getFileCredits(gen_path)
+            cur_credits = TrackerUtils.getCredits(gen_path)
             for credit in cur_credits:
                 if credit.name == orig_author:
                     new_credit = False
                     break
-
-            TrackerUtils.appendCredits(gen_path, orig_author, ",".join(diffs), no_credit)
+            TrackerUtils.appendCredits(gen_path, orig_author, ",".join(diffs), no_credit, license_id)
 
             # add to universal names list and save if changed
             if orig_author not in self.names:
@@ -1198,6 +1220,10 @@ class SpriteBot:
                     auto_recolor_file = io.BytesIO()
                     auto_recolor_img.save(auto_recolor_file, format='PNG')
                     auto_recolor_file.seek(0)
+
+                    if self.config.selectable_license:
+                        assert(len(license_id.split()) == 1)
+                        cmd_str += f" --license {license_id}"
 
                     try:
                         msg_args = parser.parse_args(cmd_str.split())
@@ -1480,6 +1506,20 @@ class SpriteBot:
                 await self.getChatChannel(msg.guild.id).send(msg.author.mention + " Invalid arguments used in submission post.\n`{0}`".format(msg.content))
                 return False
 
+            if msg_args.license is not None and not self.config.selectable_license:
+                await self.getChatChannel(msg.guild.id).send(msg.author.mention + " License selection is not enabled on this SpriteBot instance.")
+                await msg.delete()
+                return False
+            if self.config.selectable_license:
+                if msg_args.license is None:
+                    await self.getChatChannel(msg.guild.id).send(msg.author.mention + " You must specify a license with --license. More information in the info channel.")
+                    await msg.delete()
+                    return False
+                if msg_args.license not in self.licenses:
+                    await self.getChatChannel(msg.guild.id).send(f"{msg.author.mention} Unknown license ``{msg_args.license}``. Valid licenses are listed in the info channel.")
+                    await msg.delete()
+                    return False
+
             base_idx = None
             if msg_args.base:
                 name_seq = [TrackerUtils.sanitizeName(i) for i in msg_args.base]
@@ -1518,6 +1558,27 @@ class SpriteBot:
                     return False
 
                 author = "{0}/{1}".format(author, sanitized_author)
+
+            if msg_args.license is not None:
+                chosen_path = TrackerUtils.getDirFromIdx(self.config.path, asset_type, full_idx)
+                credit_name = author.split("/")[-1]
+                author_licenses = set()
+                other_licenses = set()
+                for entry in TrackerUtils.getCredits(chosen_path):
+                    if TrackerUtils.are_credit_name_identical(entry.name, credit_name):
+                        if entry.license not in author_licenses:
+                            author_licenses.add(entry.license)
+                    elif entry.license != TrackerUtils.UNSPECIFIED_LICENSE and entry.license not in other_licenses:
+                        other_licenses.add(entry.license)
+                license_warnings = []
+                if len(author_licenses) > 0 and msg_args.license not in author_licenses:
+                    license_warnings.append("You have previously contributed to this {0} under: {1}. This submission is under ``{2}``.".format(
+                        asset_type, ", ".join(["``{0}``".format(i) for i in author_licenses]), msg_args.license))
+                if len(other_licenses) > 0 and msg_args.license not in other_licenses:
+                    license_warnings.append("This {0} also has contributions under: {1}. This submission is under ``{2}``.".format(
+                        asset_type, ", ".join(["``{0}``".format(i) for i in other_licenses]), msg_args.license))
+                if len(license_warnings) > 0:
+                    await self.warnSubmission(msg, license_warnings)
 
             await self.stageSubmission(msg, " ".join(split_args), full_idx, chosen_node, asset_type, author, recolor, diffs, overcolor)
             return True

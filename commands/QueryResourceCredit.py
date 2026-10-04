@@ -93,7 +93,7 @@ class QueryResourceCredit(BaseCommand):
         credit_str = ""
         too_long = False
         if self.display_history:
-            credit_entries = TrackerUtils.getFileCredits(gen_path)
+            credit_entries = TrackerUtils.getCredits(gen_path)
             for credit_entry in credit_entries:
                 credit_id = credit_entry.name
                 entry = self.spritebot.names[credit_entry.name]
